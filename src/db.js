@@ -1,113 +1,122 @@
-// SQLite persistence via expo-sqlite (async API, SDK 51).
-// Rules store list/bool fields as a JSON config column consumed by matcher.js.
+// Storage backed by AsyncStorage (no native build-time download, unlike
+// expo-sqlite). Data is small: watched chats, keyword rules, match history.
+// Function names + returned row shapes match the original SQLite version so
+// the screens are unchanged.
 
-import * as SQLite from "expo-sqlite";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
-let _db = null;
+const K = { chats: "chats", rules: "rules", history: "history", settings: "settings" };
+const HISTORY_CAP = 500;
 
-export async function getDb() {
-  if (_db) return _db;
-  _db = await SQLite.openDatabaseAsync("tgwatch.db");
-  await _db.execAsync(`
-    PRAGMA journal_mode = WAL;
-    CREATE TABLE IF NOT EXISTS chats (
-      chat_id TEXT PRIMARY KEY,
-      title TEXT,
-      username TEXT,
-      watched INTEGER DEFAULT 0
-    );
-    CREATE TABLE IF NOT EXISTS rules (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      enabled INTEGER DEFAULT 1,
-      config TEXT NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS history (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      rule_name TEXT, chat_id TEXT, chat_title TEXT,
-      msg_id INTEGER, sender TEXT, text TEXT, link TEXT, ts INTEGER
-    );
-    CREATE INDEX IF NOT EXISTS idx_history_ts ON history(ts DESC);
-    CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT);
-  `);
-  return _db;
+async function readArr(key) {
+  try {
+    const raw = await AsyncStorage.getItem(key);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+async function writeArr(key, arr) {
+  await AsyncStorage.setItem(key, JSON.stringify(arr));
 }
 
 // ---- settings ----
 export async function getSetting(key, def = null) {
-  const db = await getDb();
-  const row = await db.getFirstAsync("SELECT value FROM settings WHERE key=?", [key]);
-  return row ? row.value : def;
+  try {
+    const raw = await AsyncStorage.getItem(K.settings);
+    const obj = raw ? JSON.parse(raw) : {};
+    return key in obj ? obj[key] : def;
+  } catch {
+    return def;
+  }
 }
 export async function setSetting(key, value) {
-  const db = await getDb();
-  await db.runAsync(
-    "INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
-    [key, String(value)]
-  );
+  const raw = await AsyncStorage.getItem(K.settings);
+  const obj = raw ? JSON.parse(raw) : {};
+  obj[key] = value;
+  await AsyncStorage.setItem(K.settings, JSON.stringify(obj));
 }
 
-// ---- chats ----
+// ---- chats ---- (rows: { chat_id, title, username, watched })
 export async function upsertChat(c) {
-  const db = await getDb();
-  await db.runAsync(
-    `INSERT INTO chats(chat_id,title,username,watched) VALUES(?,?,?,?)
-     ON CONFLICT(chat_id) DO UPDATE SET title=excluded.title, username=excluded.username`,
-    [String(c.chatId), c.title, c.username || null, c.watched ? 1 : 0]
-  );
+  const chats = await readArr(K.chats);
+  const id = String(c.chatId);
+  const i = chats.findIndex((x) => x.chat_id === id);
+  const existing = i >= 0 ? chats[i] : null;
+  const row = {
+    chat_id: id,
+    title: c.title,
+    username: c.username || null,
+    // preserve a prior watched choice on refresh
+    watched: existing ? existing.watched : c.watched ? 1 : 0,
+  };
+  if (i >= 0) chats[i] = row;
+  else chats.push(row);
+  await writeArr(K.chats, chats);
 }
 export async function setWatched(chatId, watched) {
-  const db = await getDb();
-  await db.runAsync("UPDATE chats SET watched=? WHERE chat_id=?", [watched ? 1 : 0, String(chatId)]);
+  const chats = await readArr(K.chats);
+  const i = chats.findIndex((x) => x.chat_id === String(chatId));
+  if (i >= 0) {
+    chats[i].watched = watched ? 1 : 0;
+    await writeArr(K.chats, chats);
+  }
 }
 export async function listChats() {
-  const db = await getDb();
-  return db.getAllAsync("SELECT * FROM chats ORDER BY title");
+  const chats = await readArr(K.chats);
+  return chats.sort((a, b) => (a.title || "").localeCompare(b.title || ""));
 }
 export async function watchedChatIds() {
-  const db = await getDb();
-  const rows = await db.getAllAsync("SELECT chat_id FROM chats WHERE watched=1");
-  return rows.map((r) => r.chat_id);
+  const chats = await readArr(K.chats);
+  return chats.filter((c) => c.watched).map((c) => c.chat_id);
 }
 
-// ---- rules ----
+// ---- rules ---- (matcher dicts with id, name, enabled, config fields)
 export async function listRules() {
-  const db = await getDb();
-  const rows = await db.getAllAsync("SELECT * FROM rules ORDER BY id");
-  return rows.map((r) => ({ ...JSON.parse(r.config), id: r.id, name: r.name, enabled: !!r.enabled }));
+  return readArr(K.rules);
 }
 export async function saveRule(rule) {
-  const db = await getDb();
-  const cfg = JSON.stringify(rule);
+  const rules = await readArr(K.rules);
   if (rule.id) {
-    await db.runAsync("UPDATE rules SET name=?, enabled=?, config=? WHERE id=?", [
-      rule.name, rule.enabled ? 1 : 0, cfg, rule.id,
-    ]);
-    return rule.id;
+    const i = rules.findIndex((r) => r.id === rule.id);
+    if (i >= 0) rules[i] = rule;
+    else rules.push(rule);
+  } else {
+    const maxId = rules.reduce((m, r) => Math.max(m, r.id || 0), 0);
+    rule.id = maxId + 1;
+    rules.push(rule);
   }
-  const res = await db.runAsync("INSERT INTO rules(name,enabled,config) VALUES(?,?,?)", [
-    rule.name, rule.enabled ? 1 : 0, cfg,
-  ]);
-  return res.lastInsertRowId;
+  await writeArr(K.rules, rules);
+  return rule.id;
 }
 export async function deleteRule(id) {
-  const db = await getDb();
-  await db.runAsync("DELETE FROM rules WHERE id=?", [id]);
+  const rules = await readArr(K.rules);
+  await writeArr(K.rules, rules.filter((r) => r.id !== id));
 }
 
-// ---- history ----
+// ---- history ---- (rows: { id, rule_name, chat_id, chat_title, msg_id,
+//                            sender, text, link, ts })
 export async function addHistory(h) {
-  const db = await getDb();
-  await db.runAsync(
-    `INSERT INTO history(rule_name,chat_id,chat_title,msg_id,sender,text,link,ts)
-     VALUES(?,?,?,?,?,?,?,?)`,
-    [h.ruleName, String(h.chatId), h.chatTitle, h.msgId, h.sender || null, h.text, h.link, h.ts || Date.now()]
-  );
+  const hist = await readArr(K.history);
+  const maxId = hist.reduce((m, x) => Math.max(m, x.id || 0), 0);
+  hist.unshift({
+    id: maxId + 1,
+    rule_name: h.ruleName,
+    chat_id: String(h.chatId),
+    chat_title: h.chatTitle,
+    msg_id: h.msgId,
+    sender: h.sender || null,
+    text: h.text,
+    link: h.link,
+    ts: h.ts || Date.now(),
+  });
+  await writeArr(K.history, hist.slice(0, HISTORY_CAP));
 }
 export async function searchHistory(query = null, limit = 300) {
-  const db = await getDb();
+  let hist = await readArr(K.history);
   if (query) {
-    return db.getAllAsync("SELECT * FROM history WHERE text LIKE ? ORDER BY ts DESC LIMIT ?", [`%${query}%`, limit]);
+    const q = query.toLowerCase();
+    hist = hist.filter((h) => (h.text || "").toLowerCase().includes(q));
   }
-  return db.getAllAsync("SELECT * FROM history ORDER BY ts DESC LIMIT ?", [limit]);
+  return hist.slice(0, limit);
 }
