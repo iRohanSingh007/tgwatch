@@ -2,6 +2,8 @@
   "expo": {
     "name": "TgWatch",
     "slug": "tgwatch",
+    "owner": "irohansingh007",
+    "scheme": "tgwatch",
     "version": "0.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -25,7 +27,6 @@
         "FOREGROUND_SERVICE",
         "RECEIVE_BOOT_COMPLETED"
       ]
-    },
-    "plugins": ["expo-sqlite"]
+    }
   }
 }
