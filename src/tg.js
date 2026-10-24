@@ -5,6 +5,7 @@ import { TelegramClient, Api } from "telegram";
 import { StringSession } from "telegram/sessions";
 import { NewMessage } from "telegram/events";
 import { computeCheck } from "telegram/Password";
+import { PromisedWebSockets } from "telegram/extensions";
 import * as SecureStore from "expo-secure-store";
 
 import { matchMessage } from "./matcher";
@@ -40,6 +41,10 @@ export async function getClient() {
   client = new TelegramClient(session, API_ID, API_HASH, {
     connectionRetries: 5,
     useWSS: true,
+    // Force the WebSocket socket class: RN has no `document`, so GramJS's
+    // isBrowser check is false and it would otherwise use raw TCP (net),
+    // which React Native can't do -> connect() hangs forever.
+    networkSocket: PromisedWebSockets,
     // Provide these explicitly: GramJS otherwise derives them via os.*(),
     // and the os-browserify shim returns undefined -> .toString() crash.
     deviceModel: "TgWatch",
