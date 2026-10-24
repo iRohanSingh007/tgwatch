@@ -1,7 +1,9 @@
-.buildozer/
-bin/
-*.pyc
+node_modules/
+.expo/
+dist/
+*.log
+.DS_Store
+# legacy python build artifacts
+legacy-python/.buildozer/
+legacy-python/bin/
 __pycache__/
-*.session
-*.session-journal
-.tgwatch/

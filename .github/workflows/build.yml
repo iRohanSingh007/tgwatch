@@ -1,7 +1,7 @@
-name: Build APK
+name: EAS Build APK
 
-# Build the debug APK directly with buildozer (no third-party action, which
-# tends to break on current runners). Uploads the APK as an artifact.
+# Triggers an Android APK build on Expo's EAS cloud (no local Android SDK).
+# Requires repo secret EXPO_TOKEN (Expo access token).
 on:
   push:
     branches: [ main, master ]
@@ -9,42 +9,25 @@ on:
 
 jobs:
   build:
-    # Pinned to 22.04: 24.04 dropped libtinfo5 / ncurses5 which the NDK needs.
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-node@v4
         with:
-          python-version: "3.11"
+          node-version: "20"
 
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            git zip unzip openjdk-17-jdk autoconf libtool pkg-config \
-            zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 \
-            cmake libffi-dev libssl-dev build-essential ccache
-
-      - name: Install buildozer
-        run: |
-          python -m pip install --upgrade pip
-          pip install --upgrade buildozer cython==3.0.11
-
-      - name: Cache buildozer global dir
-        uses: actions/cache@v4
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
         with:
-          path: ~/.buildozer
-          key: buildozer-${{ hashFiles('buildozer.spec') }}
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
 
-      - name: Build APK
-        run: |
-          export JAVA_HOME=$(dirname $(dirname $(readlink -f $(which javac))))
-          yes | buildozer android debug || buildozer android debug
+      - name: Install dependencies
+        run: npm install
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: tgwatch-apk
-          path: bin/*.apk
+      - name: Link/create EAS project
+        run: eas init --non-interactive --force
+
+      - name: Build Android APK (preview profile)
+        run: eas build --platform android --profile preview --non-interactive --wait
