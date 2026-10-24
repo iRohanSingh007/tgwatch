@@ -10,6 +10,10 @@ version = 0.1
 # telethon pulls pyaes + rsa (both pure python, fine on-device).
 requirements = python3,kivy==2.3.0,kivymd==1.2.0,pillow,pyjnius,telethon,pyaes,rsa,android
 
+# Use p4a develop: forces a fresh cythonize of Kivy so the generated C
+# matches the target Python 3.11 C-API (stable p4a reused stale shipped .c).
+p4a.branch = develop
+
 orientation = portrait
 fullscreen = 0
 
