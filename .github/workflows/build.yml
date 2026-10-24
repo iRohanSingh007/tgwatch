@@ -1,7 +1,7 @@
 name: Build APK
 
-# Build the debug APK in the cloud (no local Android SDK needed) and
-# upload it as a downloadable artifact. Trigger on push or manually.
+# Build the debug APK directly with buildozer (no third-party action, which
+# tends to break on current runners). Uploads the APK as an artifact.
 on:
   push:
     branches: [ main, master ]
@@ -18,15 +18,32 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Build with Buildozer
-        uses: ArtemSBulgakov/buildozer-action@v1
-        id: buildozer
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            git zip unzip openjdk-17-jdk autoconf libtool pkg-config \
+            zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 \
+            cmake libffi-dev libssl-dev build-essential ccache
+
+      - name: Install buildozer
+        run: |
+          python -m pip install --upgrade pip
+          pip install --upgrade buildozer cython==0.29.36
+
+      - name: Cache buildozer global dir
+        uses: actions/cache@v4
         with:
-          command: buildozer android debug
-          buildozer_version: stable
+          path: ~/.buildozer
+          key: buildozer-${{ hashFiles('buildozer.spec') }}
+
+      - name: Build APK
+        run: |
+          export JAVA_HOME=$(dirname $(dirname $(readlink -f $(which javac))))
+          yes | buildozer android debug || buildozer android debug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: tgwatch-apk
-          path: ${{ steps.buildozer.outputs.filename }}
+          path: bin/*.apk
