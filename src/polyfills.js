@@ -13,6 +13,14 @@ if (!global.process.version) global.process.version = "v20.0.0";
 
 // GramJS's WebSocket layer reads location.protocol for browser detection;
 // React Native has no `location`, so provide a minimal stand-in.
+// TEMP debug: surface full stacks for errors GramJS logs via console.error.
+const _origError = console.error.bind(console);
+console.error = (...args) => {
+  const e = args.find((a) => a && a.stack);
+  if (e) _origError("STACKDUMP:", e.stack);
+  else _origError(...args);
+};
+
 if (typeof global.location === "undefined") {
   global.location = {
     protocol: "https:",
