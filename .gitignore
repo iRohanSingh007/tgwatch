@@ -1,9 +1,14 @@
-node_modules/
-.expo/
-dist/
-*.log
-.DS_Store
-# legacy python build artifacts
+# Android / Gradle
+.gradle/
+build/
+local.properties
+*.iml
+.idea/
+# TDLib native libs are fetched in CI (not committed)
+app/src/main/jniLibs/
+
+# archived attempts
+legacy-rn/node_modules/
 legacy-python/.buildozer/
 legacy-python/bin/
 __pycache__/
