@@ -17,6 +17,8 @@ config.resolver.extraNodeModules = {
   events: require.resolve("events"),
   vm: require.resolve("vm-browserify"),
   zlib: require.resolve("browserify-zlib"),
+  os: require.resolve("os-browserify/browser"),
+  path: require.resolve("path-browserify"),
   // TCP transports — unused with useWSS; stub so the bundler is satisfied.
   net: require.resolve("./src/empty.js"),
   tls: require.resolve("./src/empty.js"),
