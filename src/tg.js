@@ -40,8 +40,13 @@ export async function getClient() {
   client = new TelegramClient(session, API_ID, API_HASH, {
     connectionRetries: 5,
     useWSS: true,
-    // RN has no filesystem logger; keep it quiet.
-    baseLogger: undefined,
+    // Provide these explicitly: GramJS otherwise derives them via os.*(),
+    // and the os-browserify shim returns undefined -> .toString() crash.
+    deviceModel: "TgWatch",
+    systemVersion: "Android",
+    appVersion: "0.2.0",
+    langCode: "en",
+    systemLangCode: "en",
   });
   await client.connect();
   return client;
