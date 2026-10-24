@@ -13,13 +13,30 @@ android {
         targetSdk = 34
         versionCode = 1
         versionName = "0.1"
-        // Realme is arm64; include v7a for broader reach.
-        ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
+        // arm64-only keeps the APK small (single native TDLib lib).
+        ndk { abiFilters += listOf("arm64-v8a") }
+    }
+
+    signingConfigs {
+        create("release") {
+            val ks = System.getenv("KEYSTORE_FILE")
+            if (ks != null) {
+                storeFile = file(ks)
+                storePassword = System.getenv("KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("KEY_ALIAS")
+                keyPassword = System.getenv("KEY_PASSWORD")
+                storeType = "PKCS12"
+            }
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
+            // Sign with the release key when CI provides it; otherwise unsigned.
+            if (System.getenv("KEYSTORE_FILE") != null) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
     compileOptions {
