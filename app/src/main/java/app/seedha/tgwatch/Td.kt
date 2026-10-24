@@ -25,6 +25,10 @@ object Td {
     // Incoming new messages (raw JSON), consumed by the monitor.
     val newMessages = MutableSharedFlow<JSONObject>(extraBufferCapacity = 64)
 
+    // Known chats the user can watch (channels / groups).
+    data class ChatInfo(val id: Long, val title: String)
+    val chats = MutableStateFlow<Map<Long, ChatInfo>>(emptyMap())
+
     private var clientId: Int = -1
     private var dbDir: String = ""
     private var running = false
@@ -62,6 +66,15 @@ object Td {
             "updateNewMessage" -> {
                 newMessages.tryEmit(obj)
             }
+            "updateNewChat" -> {
+                obj.optJSONObject("chat")?.let { registerChat(it) }
+            }
+            "updateChatTitle" -> {
+                val id = obj.optLong("chat_id")
+                val title = obj.optString("title")
+                val cur = chats.value[id]
+                if (cur != null) chats.value = chats.value + (id to cur.copy(title = title))
+            }
             "error" -> {
                 lastError.tryEmit(obj.optString("message", "error"))
             }
@@ -90,7 +103,45 @@ object Td {
                 // Older TDLib builds still ask for this; empty key is fine.
                 send(JSONObject().put("@type", "checkDatabaseEncryptionKey").put("encryption_key", ""))
             }
+            "authorizationStateReady" -> {
+                loadChats()
+            }
         }
+    }
+
+    private fun registerChat(chat: JSONObject) {
+        val id = chat.optLong("id")
+        val type = chat.optJSONObject("type")?.optString("@type")
+        // Only channels / groups are watch candidates (not private DMs).
+        if (type == "chatTypeSupergroup" || type == "chatTypeBasicGroup") {
+            val title = chat.optString("title", id.toString())
+            chats.value = chats.value + (id to ChatInfo(id, title))
+        }
+    }
+
+    fun loadChats() {
+        send(
+            JSONObject().put("@type", "loadChats")
+                .put("chat_list", JSONObject().put("@type", "chatListMain"))
+                .put("limit", 200)
+        )
+    }
+
+    /** Extract the text/caption from an updateNewMessage payload. */
+    fun messageText(update: JSONObject): String {
+        val content = update.optJSONObject("message")?.optJSONObject("content") ?: return ""
+        content.optJSONObject("text")?.let { return it.optString("text") }
+        content.optJSONObject("caption")?.let { return it.optString("text") }
+        return ""
+    }
+
+    /** Build a t.me deep link for a message in a channel/supergroup. */
+    fun messageLink(chatId: Long, messageId: Long): String {
+        // Supergroup/channel chat ids look like -100XXXXXXXXXX.
+        val internal = -chatId - 1_000_000_000_000L
+        val serverMsgId = messageId shr 20
+        return if (internal > 0) "https://t.me/c/$internal/$serverMsgId"
+        else "https://t.me/"
     }
 
     // ---- login actions ----
