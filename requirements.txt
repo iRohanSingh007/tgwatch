@@ -1,0 +1,6 @@
+# Desktop dev / local testing only (the APK deps live in buildozer.spec).
+# Install these to run the UI on a desktop for quick iteration:
+#   pip install -r requirements.txt
+kivy==2.3.0
+kivymd==1.2.0
+telethon
