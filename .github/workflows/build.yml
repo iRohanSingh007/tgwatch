@@ -9,7 +9,8 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # Pinned to 22.04: 24.04 dropped libtinfo5 / ncurses5 which the NDK needs.
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
 
