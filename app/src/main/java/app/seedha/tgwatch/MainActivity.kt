@@ -207,21 +207,44 @@ private fun HistoryTab() {
 private fun ChatsTab() {
     val chats by Td.chats.collectAsState()
     val watched by Store.watched.collectAsState()
-    val list = chats.values.sortedBy { it.title.lowercase() }
-    if (list.isEmpty()) {
-        CenterText("Loading your chats…")
-        return
-    }
-    LazyColumn(Modifier.fillMaxSize()) {
-        items(list) { c ->
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(c.title, Modifier.weight(1f))
-                Switch(checked = c.id in watched, onCheckedChange = { Store.setWatched(c.id, it) })
+    var query by remember { mutableStateOf("") }
+    val list = chats.values
+        .filter { query.isBlank() || it.title.contains(query, ignoreCase = true) }
+        .sortedBy { it.title.lowercase() }
+
+    Column(Modifier.fillMaxSize()) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            OutlinedTextField(
+                value = query,
+                onValueChange = { query = it },
+                label = { Text("Search chats") },
+                leadingIcon = { Icon(Icons.Default.Search, null) },
+                trailingIcon = {
+                    if (query.isNotEmpty()) IconButton(onClick = { query = "" }) { Icon(Icons.Default.Clear, null) }
+                },
+                singleLine = true,
+                modifier = Modifier.weight(1f),
+            )
+            IconButton(onClick = { Td.loadChats() }) { Icon(Icons.Default.Refresh, null) }
+        }
+        when {
+            chats.isEmpty() -> CenterText("Loading your chats…\nTap ⟳ to reload.")
+            list.isEmpty() -> CenterText("No chats match \"$query\".")
+            else -> LazyColumn(Modifier.fillMaxSize()) {
+                items(list) { c ->
+                    Row(
+                        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(c.title, Modifier.weight(1f))
+                        Switch(checked = c.id in watched, onCheckedChange = { Store.setWatched(c.id, it) })
+                    }
+                    HorizontalDivider()
+                }
             }
-            HorizontalDivider()
         }
     }
 }
