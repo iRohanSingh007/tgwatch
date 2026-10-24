@@ -4,6 +4,12 @@ Monitor your Telegram channels for keywords and get a tappable notification
 that opens the message. Uses **TDLib** (Telegram's official native library)
 for the Client API — real MTProto, no JS crypto hacks. In-app login, on-device.
 
+## 📥 Download
+
+Grab the latest signed APK from
+**[Releases](https://github.com/iRohanSingh007/tgwatch/releases/latest)**
+(arm64 Android 9+), then install it (allow "install from unknown sources").
+
 ## Stack
 - Kotlin + Jetpack Compose (Material 3)
 - TDLib 1.8.65 via prebuilt libtdjson.so (up9cloud/android-libtdjson), fetched in CI
