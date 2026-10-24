@@ -57,6 +57,7 @@ export default function ChatsScreen({ onAuthChange }) {
     try {
       await fn();
     } catch (e) {
+      console.log("TGERR", e?.message, "\n", e?.stack);
       setError(String(e?.errorMessage || e?.message || e));
     } finally {
       setBusy(false);
