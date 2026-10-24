@@ -53,7 +53,12 @@ export async function getClient() {
     langCode: "en",
     systemLangCode: "en",
   });
-  await client.connect();
+  try {
+    await client.connect();
+  } catch (e) {
+    console.log("TGCONNERR", e?.message, "\n", e?.stack);
+    throw e;
+  }
   return client;
 }
 

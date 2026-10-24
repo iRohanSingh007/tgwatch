@@ -8,6 +8,11 @@ const { getDefaultConfig } = require("expo/metro-config");
 
 const config = getDefaultConfig(__dirname);
 
+// Prefer the "browser" field so GramJS uses its browser implementations
+// (e.g. PromisedWebSockets backed by RN's global WebSocket) instead of the
+// Node variants that need the `websocket` npm package.
+config.resolver.resolverMainFields = ["react-native", "browser", "main"];
+
 config.resolver.extraNodeModules = {
   ...config.resolver.extraNodeModules,
   crypto: require.resolve("crypto-browserify"),
