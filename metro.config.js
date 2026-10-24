@@ -16,6 +16,10 @@ config.resolver.extraNodeModules = {
   process: require.resolve("process"),
   events: require.resolve("events"),
   vm: require.resolve("vm-browserify"),
+  zlib: require.resolve("browserify-zlib"),
+  // TCP transports — unused with useWSS; stub so the bundler is satisfied.
+  net: require.resolve("./src/empty.js"),
+  tls: require.resolve("./src/empty.js"),
 };
 
 module.exports = config;
