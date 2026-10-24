@@ -21,6 +21,9 @@ config.resolver.extraNodeModules = {
   process: require.resolve("process"),
   events: require.resolve("events"),
   vm: require.resolve("vm-browserify"),
+  // GramJS's `websocket` dep -> RN global WebSocket (w3cwebsocket is undefined
+  // in the Node package under React Native).
+  websocket: require.resolve("./src/websocket-shim.js"),
   zlib: require.resolve("browserify-zlib"),
   os: require.resolve("os-browserify/browser"),
   path: require.resolve("path-browserify"),
