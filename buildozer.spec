@@ -16,7 +16,7 @@ fullscreen = 0
 # Android 9+ (API 28). Target a modern API for Play/compat.
 android.api = 34
 android.minapi = 28
-android.archs = arm64-v8a, armeabi-v7a
+android.archs = arm64-v8a
 android.allow_backup = True
 
 android.permissions = INTERNET, WAKE_LOCK, FOREGROUND_SERVICE, POST_NOTIFICATIONS, RECEIVE_BOOT_COMPLETED, REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
