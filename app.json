@@ -27,6 +27,11 @@
         "FOREGROUND_SERVICE",
         "RECEIVE_BOOT_COMPLETED"
       ]
+    },
+    "extra": {
+      "eas": {
+        "projectId": "7a03b512-2d02-4333-92f2-c05ea013a558"
+      }
     }
   }
 }
