@@ -19,9 +19,11 @@ config.resolver.extraNodeModules = {
   zlib: require.resolve("browserify-zlib"),
   os: require.resolve("os-browserify/browser"),
   path: require.resolve("path-browserify"),
-  // TCP transports — unused with useWSS; stub so the bundler is satisfied.
+  // Unused on-device (TCP transport + node-localstorage session store, which
+  // we replace with StringSession) — stub so the bundler is satisfied.
   net: require.resolve("./src/empty.js"),
   tls: require.resolve("./src/empty.js"),
+  fs: require.resolve("./src/empty.js"),
 };
 
 module.exports = config;
