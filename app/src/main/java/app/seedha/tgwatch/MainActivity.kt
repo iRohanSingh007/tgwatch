@@ -3,10 +3,13 @@
 package app.seedha.tgwatch
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.PowerManager
+import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -29,7 +32,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.lifecycleScope
 
 private val DarkColors = darkColorScheme(
     primary = Color(0xFF38A0F0),
@@ -42,7 +44,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         Store.init(applicationContext)
         Td.start(applicationContext)
-        Monitor.start(applicationContext, lifecycleScope)
+        // The foreground service owns the live monitor so it survives the UI closing.
+        MonitorService.start(applicationContext)
 
         setContent {
             MaterialTheme(colorScheme = DarkColors) {
@@ -139,11 +142,41 @@ private fun MainScreen() {
             if (tab == 0) FloatingActionButton(onClick = { editing = Rule(0, "") }) { Icon(Icons.Default.Add, null) }
         },
     ) { pad ->
-        Box(Modifier.padding(pad)) {
-            when (tab) {
-                0 -> RulesTab(onEdit = { editing = it })
-                1 -> HistoryTab()
-                2 -> ChatsTab()
+        Column(Modifier.padding(pad)) {
+            BatteryBanner()
+            Box(Modifier.weight(1f)) {
+                when (tab) {
+                    0 -> RulesTab(onEdit = { editing = it })
+                    1 -> HistoryTab()
+                    2 -> ChatsTab()
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun BatteryBanner() {
+    val context = LocalContext.current
+    val pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+    var dismissed by remember { mutableStateOf(false) }
+    val ignoring = remember { pm.isIgnoringBatteryOptimizations(context.packageName) }
+    if (ignoring || dismissed) return
+    ElevatedCard(Modifier.fillMaxWidth().padding(8.dp)) {
+        Column(Modifier.padding(12.dp)) {
+            Text("Keep alerts reliable", style = MaterialTheme.typography.titleSmall)
+            Text(
+                "Allow TgWatch to run in the background so it keeps watching when closed. On Realme/ColorOS this is required.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Row(Modifier.align(Alignment.End)) {
+                TextButton(onClick = { dismissed = true }) { Text("Later") }
+                FilledTonalButton(onClick = {
+                    runCatching {
+                        context.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+                    }
+                }) { Text("Open settings") }
             }
         }
     }
